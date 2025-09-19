@@ -5,9 +5,11 @@ local Player = Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Root: BasePart = Character:FindFirstChild("HumanoidRootPart")
 
+local SharedFldr = ReplicatedStorage.Shared
 local ClientModules = ReplicatedStorage.ClientModules
 local RenderingFldr = ClientModules.renderingFldr
 local AnimationHandler = require(RenderingFldr.animationHandler)
+local SharedFunctions = require(SharedFldr.SharedFunctions)
 local Config = require(ClientModules:FindFirstChild("Config"))
 
 local Highlight = Instance.new("Highlight")
@@ -31,7 +33,9 @@ type StandData = {
 
 function Renderer.LoadStandData() --Called at start to load up all stand data making it so it isn't constantly needing to be refreced
 	for _, Stand in pairs(StandFldr:GetChildren()) do
-		local AnimationId = Stand:GetAttribute("AnimationId")
+		local PurchaseAnimationId = Stand:GetAttribute("PurchaseAnimationId")
+		local RawAnimationId = Stand:GetAttribute("RawAnimationId")
+
 		local StandRig: Model = Stand:FindFirstChild("Rig")
 		if not StandRig then
 			warn("Stand fails to have rig")
@@ -39,8 +43,8 @@ function Renderer.LoadStandData() --Called at start to load up all stand data ma
 		end
 
 		table.insert(StandDataList, {
-			PurchaseAnimationId = AnimationId,
-			LegitAnimationId = "",
+			PurchaseAnimationId = PurchaseAnimationId,
+			RawAnimationId = RawAnimationId,
 			StandRig = StandRig,
 		})
 	end
@@ -50,15 +54,20 @@ function Renderer.GetStandAnimIds()
 	local AnimationIds = {}
 
 	for _, sub_data in StandDataList do
-		table.insert(AnimationIds, sub_data.LegitAnimationId)
+		table.insert(AnimationIds, sub_data.RawAnimationId)
 	end
 
 	return AnimationIds
 end
 
 function Renderer.RenderStand(stand)
-	AnimationHandler.PlayAnimation(stand.Rig, stand, true)
+	AnimationHandler.PlayAnimation(stand.Rig, stand:GetAttribute("RawAnimationId"), true)
 	InRenderStands[stand] = true
+end
+
+function Renderer.UnrenderStand(stand)
+	AnimationHandler.EndAllAnimations(stand.Rig)
+	InRenderStands[stand] = nil
 end
 
 function Renderer.SetPrimaryStand(Data: StandData)
@@ -66,12 +75,20 @@ function Renderer.SetPrimaryStand(Data: StandData)
 	Highlight.Parent = Data.StandRig
 end
 
-function Renderer.RenderStands(List)
+function Renderer.RenderStands(List) --This list contains all the stands to be renders
 	for _, stand in List do
 		if InRenderStands[stand] then
 			continue
 		end
 		Renderer.RenderStand(stand)
+	end
+
+	--Loop through old stands to see if they are unnessaryally rendered
+	for stand, _ in InRenderStands do
+		if table.find(List, stand) then
+			continue
+		end
+		Renderer.UnrenderStand(stand)
 	end
 end
 

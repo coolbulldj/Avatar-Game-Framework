@@ -16,7 +16,7 @@ function AnimationHandler.LoadAnimationInstances(ids)
 
 		AnimIns.Parent = AnimationFldr
 
-		ContentProvider:PreloadAsync(AnimIns)
+		ContentProvider:PreloadAsync({ AnimIns })
 
 		LoadedAnimationInstances[id] = AnimIns
 	end
@@ -30,7 +30,7 @@ function AnimationHandler.PlayAnimation(Rig, Id, Looped)
 	local AnimationInstance = LoadedAnimationInstances[Id]
 
 	if not AnimationInstance then
-		warn("couldn't find animation instance for animation id, " .. Id)
+		warn("couldn't find animation instance for animation id, " .. tostring(Id))
 		return
 	end
 
@@ -45,7 +45,7 @@ function AnimationHandler.EndAllAnimations(Rig)
 	local Humanoid = Rig:FindFirstChild("Humanoid")
 
 	local Animator: Animator = Humanoid:FindFirstChild("Animator")
-
+	print("ending all animations")
 	for _, track in pairs(Animator:GetPlayingAnimationTracks()) do
 		track:Stop()
 		track:Destroy()
