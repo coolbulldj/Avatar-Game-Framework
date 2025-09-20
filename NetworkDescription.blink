@@ -11,7 +11,8 @@ struct ProductInfo {
     ProductType:string?,
     IsForSale:boolean,
     IsLimited:boolean,
-    BundleId:string?,
+    BundleId:f32?,
+    BundleProductId:f64?,
     MarketplaceProductType:MarketplaceProductType,
 }
 

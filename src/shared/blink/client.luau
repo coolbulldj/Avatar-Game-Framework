@@ -151,10 +151,10 @@ local Queue: any = {
 }
 
 Queue.Reliable[0] = table.create(256)
-export type MarketplaceProductType = ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset")
-export type ProductInfo = { Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") }
-export type ProductIdTemplate = { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }
-export type PurchaseIdList = {[number]: { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }}
+export type MarketplaceProductType = ("AvatarBundle" | "AvatarAsset")
+export type ProductInfo = { Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: number?, BundleProductId: number?, MarketplaceProductType: ("AvatarBundle" | "AvatarAsset") }
+export type ProductIdTemplate = { Type: ("AvatarBundle" | "AvatarAsset"), Id: string }
+export type PurchaseIdList = {[number]: { Type: ("AvatarBundle" | "AvatarAsset"), Id: string }}
 local function WriteFUNCTION_DATA_GetProductInfo(Value: number, InvocationIdentifier: number): ()
 	-- Allocate BLOCK: 10 bytes
 	local BLOCK_START = Allocate(10)
@@ -163,9 +163,9 @@ local function WriteFUNCTION_DATA_GetProductInfo(Value: number, InvocationIdenti
 	buffer.writef64(SendBuffer, BLOCK_START + 2, Value)
 end
 
-local function ReadFUNCTION_RETURN_GetProductInfo(): ({ Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") })
-	-- Read BLOCK: 11 bytes
-	local BLOCK_START = Read(11)
+local function ReadFUNCTION_RETURN_GetProductInfo(): ({ Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: number?, BundleProductId: number?, MarketplaceProductType: ("AvatarBundle" | "AvatarAsset") })
+	-- Read BLOCK: 12 bytes
+	local BLOCK_START = Read(12)
 	local Success = buffer.readu8(RecieveBuffer, BLOCK_START + 0)
 	if Success ~= 1 then
 		error("Server encountered an error.")
@@ -189,24 +189,28 @@ local function ReadFUNCTION_RETURN_GetProductInfo(): ({ Name: string, Descriptio
 	Value.IsForSale = (buffer.readu8(RecieveBuffer, BLOCK_START + 7) == 1)
 	Value.IsLimited = (buffer.readu8(RecieveBuffer, BLOCK_START + 8) == 1)
 	if buffer.readu8(RecieveBuffer, BLOCK_START + 9) == 1 then
-		-- Read BLOCK: 2 bytes
-		local BLOCK_START = Read(2)
-		Length = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
-		Value.BundleId = buffer.readstring(RecieveBuffer, Read(Length), Length)
+		-- Read BLOCK: 4 bytes
+		local BLOCK_START = Read(4)
+		Value.BundleId = buffer.readf32(RecieveBuffer, BLOCK_START + 0)
+	end
+	if buffer.readu8(RecieveBuffer, BLOCK_START + 10) == 1 then
+		-- Read BLOCK: 8 bytes
+		local BLOCK_START = Read(8)
+		Value.BundleProductId = buffer.readf64(RecieveBuffer, BLOCK_START + 0)
 	end
 	Value.MarketplaceProductType = true :: any
-	local Index = buffer.readu8(RecieveBuffer, BLOCK_START + 10)
+	local Index = buffer.readu8(RecieveBuffer, BLOCK_START + 11)
 	if Index == 0 then
-		Value.MarketplaceProductType = "Enum.MarketplaceProductType.AvatarBundle"
+		Value.MarketplaceProductType = "AvatarBundle"
 	elseif Index == 1 then
-		Value.MarketplaceProductType = "Enum.MarketplaceProductType.AvatarAsset"
+		Value.MarketplaceProductType = "AvatarAsset"
 	else
 		error(`Unexpected enum: {Index}`)
 	end
 	return Value
 end
 
-local function WriteEVENT_PromptPurchase(Value: {[number]: { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }}): ()
+local function WriteEVENT_PromptPurchase(Value: {[number]: { Type: ("AvatarBundle" | "AvatarAsset"), Id: string }}): ()
 	-- Allocate BLOCK: 3 bytes
 	local BLOCK_START = Allocate(3)
 	buffer.writeu8(SendBuffer, BLOCK_START + 0, 1)
@@ -216,12 +220,12 @@ local function WriteEVENT_PromptPurchase(Value: {[number]: { Type: ("Enum.Market
 		local OFFSET_0 = Allocate(8)
 		buffer.writef64(SendBuffer, OFFSET_0, Key_1)
 		local OFFSET_1 = Allocate(1)
-		if Element_1.Type == "Enum.MarketplaceProductType.AvatarBundle" then
+		if Element_1.Type == "AvatarBundle" then
 			buffer.writeu8(SendBuffer, OFFSET_1, 0)
-		elseif Element_1.Type == "Enum.MarketplaceProductType.AvatarAsset" then
+		elseif Element_1.Type == "AvatarAsset" then
 			buffer.writeu8(SendBuffer, OFFSET_1, 1)
 		else
-			error(`Unexpected enum: {Element_1.Type}, expected one of "Enum.MarketplaceProductType.AvatarBundle" or "Enum.MarketplaceProductType.AvatarAsset".`)
+			error(`Unexpected enum: {Element_1.Type}, expected one of "AvatarBundle" or "AvatarAsset".`)
 		end
 		local Length = #Element_1.Id
 		local OFFSET_2 = Allocate(2)
@@ -310,7 +314,7 @@ local Returns = table.freeze({
 	StepReplication = StepReplication,
 
 	GetProductInfo = {
-		Invoke = function(Value: number): ({ Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") })
+		Invoke = function(Value: number): ({ Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: number?, BundleProductId: number?, MarketplaceProductType: ("AvatarBundle" | "AvatarAsset") })
 			local InvocationIdentifier = Invoke()
 			if Calls[InvocationIdentifier] ~= nil then
 				Invocations -= 1
@@ -318,7 +322,7 @@ local Returns = table.freeze({
 			end
 			WriteFUNCTION_DATA_GetProductInfo(Value, InvocationIdentifier)
 			Calls[InvocationIdentifier] = coroutine.running()
-			local Success, ReturnValue: { Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") } = coroutine.yield()
+			local Success, ReturnValue: { Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: number?, BundleProductId: number?, MarketplaceProductType: ("AvatarBundle" | "AvatarAsset") } = coroutine.yield()
 			if Success ~= true then
 				error("There was an exception while processing \"GetProductInfo\".")
 			end
@@ -326,7 +330,7 @@ local Returns = table.freeze({
 		end
 	},
 	PromptPurchase = {
-		Fire = function(Value: {[number]: { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }}): ()
+		Fire = function(Value: {[number]: { Type: ("AvatarBundle" | "AvatarAsset"), Id: string }}): ()
 			WriteEVENT_PromptPurchase(Value)
 		end
 	},

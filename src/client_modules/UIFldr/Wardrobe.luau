@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 
 local AssetsFldr = ReplicatedStorage.Assets
@@ -39,9 +40,9 @@ local WardrobeTranstion = false
 
 local WardrobeConnections = {}
 
-local function ItemOnHoverEnter(elem)
+local function ItemOnHoverEnter(elem, OwnedItem)
 	return function()
-		elem.PurchaseB.Visible = true
+		elem.PurchaseB.Visible = not OwnedItem
 		elem.AddToCartB.Visible = true
 	end
 end
@@ -67,6 +68,7 @@ local function AddItemToCart(id)
 end
 
 function Wardrobe.LoadDescription(description: HumanoidDescription)
+	print("loading?")
 	local Items = SharedFunctions.HumanoidDescriptionToTable(description)
 
 	--Clear old items
@@ -84,7 +86,13 @@ function Wardrobe.LoadDescription(description: HumanoidDescription)
 
 	local ActiveThreads = 0
 
+	local SpawnedItems = {}
+
 	for _, id: string in Items do
+		if SpawnedItems[id] then
+			continue
+		end
+		SpawnedItems[id] = true
 		ActiveThreads += 1
 		task.spawn(function()
 			local NumberId = tonumber(id)
@@ -106,16 +114,25 @@ function Wardrobe.LoadDescription(description: HumanoidDescription)
 
 			Item.DisplayImage.Image = Image
 
-			local C1 = Item.MouseEnter:Connect(ItemOnHoverEnter(Item))
+			local Owned = MarketplaceService:PlayerOwnsAsset(Player, NumberId)
+
+			local C1 = Item.MouseEnter:Connect(ItemOnHoverEnter(Item, Owned))
 			local C2 = Item.MouseLeave:Connect(ItemOnHoverExit(Item))
 
-			local C3 = Item.PurchaseB.MouseButton1Up:Connect(ItemPurchase(id, info.MarketplaceProductType))
-			local C4 = Item.AddToCartB.MouseButton1Up:Connect(AddItemToCart(id))
+			local C3 = Item.AddToCartB.MouseButton1Up:Connect(AddItemToCart(id))
 
 			table.insert(WardrobeConnections, C1)
 			table.insert(WardrobeConnections, C2)
 			table.insert(WardrobeConnections, C3)
-			table.insert(WardrobeConnections, C4)
+
+			if not Owned then
+				local C4 =
+					Item.PurchaseB.MouseButton1Up:Connect(ItemPurchase(tostring(id), info.MarketplaceProductType))
+
+				table.insert(WardrobeConnections, C4)
+			else
+				Item.Owned_Template.Visible = true
+			end
 
 			Item.Parent = WardrobeItemHolder
 			ActiveThreads -= 1

@@ -41,6 +41,14 @@ function AnimationHandler.PlayAnimation(Rig, Id, Looped)
 	Animation:Play()
 end
 
+local function ResetRigPose(Rig)
+	for _, motor in pairs(Rig:GetDescendants()) do
+		if motor:IsA("Motor6D") then
+			motor.Transform = CFrame.new() -- reset offset
+		end
+	end
+end
+
 function AnimationHandler.EndAllAnimations(Rig)
 	local Humanoid = Rig:FindFirstChild("Humanoid")
 
@@ -50,6 +58,8 @@ function AnimationHandler.EndAllAnimations(Rig)
 		track:Stop()
 		track:Destroy()
 	end
+
+	ResetRigPose(Rig)
 end
 
 return AnimationHandler
