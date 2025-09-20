@@ -15,6 +15,9 @@
     "ServerScriptService": {
       "Server": {
         "$path": "src/server"
+      },
+      "ServerModules" : {
+        "$path" : "src/server_modules"
       }
     },
 

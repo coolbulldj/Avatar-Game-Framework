@@ -1,0 +1,11 @@
+-- these can be ignored if you are using the studio plugin
+option ClientOutput = "src/shared/blink/client.luau"
+option ServerOutput = "src/shared/blink/server.luau"
+ 
+map ProductInfo = { [string]    }
+
+function GetProductInfo {
+    Yield: Coroutine,
+    Data: f64,
+    Return: 
+}

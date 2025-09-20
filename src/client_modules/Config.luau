@@ -6,4 +6,8 @@ config.HighlightFillTransparency = 1
 
 config.Range = 25
 
+config.WardrobeClosePosition = UDim2.fromScale(0.5, -1)
+config.WardrobeOpenTime = 1
+config.WardrobeCloseTime = 1
+
 return config

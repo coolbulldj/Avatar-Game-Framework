@@ -20,6 +20,7 @@ local animationIds = Renderer.GetStandAnimIds()
 AnimationHandler.LoadAnimationInstances(animationIds)
 local Range = Config.Range
 
+--Handle Rendering
 RunService.RenderStepped:Connect(function()
 	local StandsToRender = Renderer.GetStandsInRange(Range)
 
