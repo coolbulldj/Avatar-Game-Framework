@@ -2,10 +2,36 @@
 option ClientOutput = "src/shared/blink/client.luau"
 option ServerOutput = "src/shared/blink/server.luau"
  
-map ProductInfo = { [string]    }
+enum MarketplaceProductType = {AvatarBundle, AvatarAsset}
+
+struct ProductInfo {
+    Name:string,
+    Description:string,
+    PriceInRobux:f32?, --Potentially optional if the item isn't for sale
+    ProductType:string?,
+    IsForSale:boolean,
+    IsLimited:boolean,
+    BundleId:string?,
+    MarketplaceProductType:MarketplaceProductType,
+}
+
+struct ProductIdTemplate {
+    Type: MarketplaceProductType,
+    Id:string
+}
+
+map PurchaseIdList = {[f64]:ProductIdTemplate}
 
 function GetProductInfo {
     Yield: Coroutine,
     Data: f64,
-    Return: 
+    Return: ProductInfo
 }
+
+event PromptPurchase {
+    from: Client,
+    type: Reliable,
+    call:SingleSync,
+    Data: PurchaseIdList
+}
+

@@ -152,6 +152,11 @@ local Queue: any = {
 }
 
 Queue.Reliable[0] = table.create(256)
+Queue.Reliable[1] = table.create(256)
+export type MarketplaceProductType = ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset")
+export type ProductInfo = { Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") }
+export type ProductIdTemplate = { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }
+export type PurchaseIdList = {[number]: { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }}
 local function ReadFUNCTION_DATA_GetProductInfo(): (number)
 	-- Read BLOCK: 8 bytes
 	local BLOCK_START = Read(8)
@@ -159,30 +164,89 @@ local function ReadFUNCTION_DATA_GetProductInfo(): (number)
 	return Value
 end
 
-local function WriteFUNCTION_RETURN_GetProductInfo(Value: { number }, InvocationIdentifier: number): ()
-	-- Allocate BLOCK: 4 bytes
-	local BLOCK_START = Allocate(4)
+local function WriteFUNCTION_RETURN_GetProductInfo(Value: { Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") }, InvocationIdentifier: number): ()
+	-- Allocate BLOCK: 13 bytes
+	local BLOCK_START = Allocate(13)
 	buffer.writeu8(SendBuffer, BLOCK_START + 0, 0)
 	buffer.writeu8(SendBuffer, BLOCK_START + 1, InvocationIdentifier)
 	buffer.writeu8(SendBuffer, BLOCK_START + 2, 1)
-	-- START ARRAY
-	buffer.writeu8(SendBuffer, BLOCK_START + 3, #Value)
-		-- Allocate BLOCK: 8 bytes
-	local ARRAY_START_1 = Allocate(8 * #Value)
-	for Index = 1, #Value do
-		local Item_1 = Value[Index]
-		-- Allocate 8
-		local OPERATION_OFFSET_0 = ARRAY_START_1
-		ARRAY_START_1 += 8
-		buffer.writef64(SendBuffer, OPERATION_OFFSET_0, Item_1)
+	local Length = #Value.Name
+	buffer.writeu16(SendBuffer, BLOCK_START + 3, Length)
+	Allocate(Length)
+	buffer.writestring(SendBuffer, SendOffset, Value.Name, Length)
+	local Length = #Value.Description
+	buffer.writeu16(SendBuffer, BLOCK_START + 5, Length)
+	Allocate(Length)
+	buffer.writestring(SendBuffer, SendOffset, Value.Description, Length)
+	buffer.writeu8(SendBuffer, BLOCK_START + 7, Value.PriceInRobux ~= nil and 1 or 0)
+	if Value.PriceInRobux ~= nil then
+		-- Allocate BLOCK: 4 bytes
+		local BLOCK_START = Allocate(4)
+		buffer.writef32(SendBuffer, BLOCK_START + 0, Value.PriceInRobux)
 	end
-	-- END ARRAY
+	buffer.writeu8(SendBuffer, BLOCK_START + 8, Value.ProductType ~= nil and 1 or 0)
+	if Value.ProductType ~= nil then
+		-- Allocate BLOCK: 2 bytes
+		local BLOCK_START = Allocate(2)
+		local Length = #Value.ProductType
+		buffer.writeu16(SendBuffer, BLOCK_START + 0, Length)
+		Allocate(Length)
+		buffer.writestring(SendBuffer, SendOffset, Value.ProductType, Length)
+	end
+	buffer.writeu8(SendBuffer, BLOCK_START + 9, Value.IsForSale and 1 or 0)
+	buffer.writeu8(SendBuffer, BLOCK_START + 10, Value.IsLimited and 1 or 0)
+	buffer.writeu8(SendBuffer, BLOCK_START + 11, Value.BundleId ~= nil and 1 or 0)
+	if Value.BundleId ~= nil then
+		-- Allocate BLOCK: 2 bytes
+		local BLOCK_START = Allocate(2)
+		local Length = #Value.BundleId
+		buffer.writeu16(SendBuffer, BLOCK_START + 0, Length)
+		Allocate(Length)
+		buffer.writestring(SendBuffer, SendOffset, Value.BundleId, Length)
+	end
+	if Value.MarketplaceProductType == "Enum.MarketplaceProductType.AvatarBundle" then
+		buffer.writeu8(SendBuffer, BLOCK_START + 12, 0)
+	elseif Value.MarketplaceProductType == "Enum.MarketplaceProductType.AvatarAsset" then
+		buffer.writeu8(SendBuffer, BLOCK_START + 12, 1)
+	else
+		error(`Unexpected enum: {Value.MarketplaceProductType}, expected one of "Enum.MarketplaceProductType.AvatarBundle" or "Enum.MarketplaceProductType.AvatarAsset".`)
+	end
+end
+
+local function ReadEVENT_PromptPurchase(): ({[number]: { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }})
+	-- Read BLOCK: 2 bytes
+	local BLOCK_START = Read(2)
+	local Value = {}
+	local Elements_1 = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
+	for _ = 1, Elements_1 do
+		local OFFSET_0 = Read(8)
+		local Key_1 = buffer.readf64(RecieveBuffer, OFFSET_0)
+		local Element_1 = {} :: any
+		Element_1.Type = true :: any
+		local OFFSET_1 = Read(1)
+		local Index = buffer.readu8(RecieveBuffer, OFFSET_1)
+		if Index == 0 then
+			Element_1.Type = "Enum.MarketplaceProductType.AvatarBundle"
+		elseif Index == 1 then
+			Element_1.Type = "Enum.MarketplaceProductType.AvatarAsset"
+		else
+			error(`Unexpected enum: {Index}`)
+		end
+		local OFFSET_2 = Read(2)
+		local Length = buffer.readu16(RecieveBuffer, OFFSET_2)
+		Element_1.Id = buffer.readstring(RecieveBuffer, Read(Length), Length)
+		Value[Key_1] = Element_1
+	end
+	return Value
 end
 
 if not RunService:IsRunning() then
 	local NOOP = function() end
 	local Returns = table.freeze({
 	GetProductInfo = {
+		On = NOOP
+	},
+	PromptPurchase = {
 		On = NOOP
 	},
 	})
@@ -255,6 +319,16 @@ Reliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instance
 				end
 				table.insert(Queue.Reliable[0], {Player, Value, InvocationIdentifier} :: {any})
 			end
+		elseif Index == 1 then
+			local Value: {[number]: { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }} = ReadEVENT_PromptPurchase()
+			if Events.Reliable[1] ~= nil then
+				Events.Reliable[1](Player, Value)
+			else
+				if #Queue.Reliable[1] > 256 then
+					warn("[Blink]: Event queue of \"PromptPurchase\" exceeded 256, did you forget to implement a listener?")
+				end
+				table.insert(Queue.Reliable[1], {Player, Value} :: {any})
+			end
 		end
 	end
 end)
@@ -276,9 +350,9 @@ local Returns = table.freeze({
 	StepReplication = StepReplication,
 
 	GetProductInfo = {
-		On = function(Listener: (Player, number) -> ({ number })): ()
+		On = function(Listener: (Player, number) -> ({ Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") })): ()
 			Events.Reliable[0] = function(Player: Player, Value: number, InvocationIdentifier: number): ()
-				local ReturnValue: { number };
+				local ReturnValue: { Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") };
 				local Success, Error = pcall(function ()
 					ReturnValue = Listener(Player, Value)
 				end)
@@ -301,6 +375,20 @@ local Returns = table.freeze({
 					Events.Reliable[0](table.unpack(Arguments))
 				end
 			end)
+		end
+	},
+	PromptPurchase = {
+		On = function(Listener: (Player: Player, Value: {[number]: { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }}) -> ()): () -> ()
+			Events.Reliable[1] = Listener
+			for Index, Arguments in Queue.Reliable[1] do
+				Listener(table.unpack(Arguments))
+			end
+			Queue.Reliable[1] = {}
+			return function (): ()
+				if Events.Reliable[1] == Listener then
+					Events.Reliable[1] = nil
+				end
+			end
 		end
 	},
 })

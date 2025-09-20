@@ -151,6 +151,10 @@ local Queue: any = {
 }
 
 Queue.Reliable[0] = table.create(256)
+export type MarketplaceProductType = ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset")
+export type ProductInfo = { Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") }
+export type ProductIdTemplate = { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }
+export type PurchaseIdList = {[number]: { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }}
 local function WriteFUNCTION_DATA_GetProductInfo(Value: number, InvocationIdentifier: number): ()
 	-- Allocate BLOCK: 10 bytes
 	local BLOCK_START = Allocate(10)
@@ -159,29 +163,73 @@ local function WriteFUNCTION_DATA_GetProductInfo(Value: number, InvocationIdenti
 	buffer.writef64(SendBuffer, BLOCK_START + 2, Value)
 end
 
-local function ReadFUNCTION_RETURN_GetProductInfo(): ({ number })
-	-- Read BLOCK: 2 bytes
-	local BLOCK_START = Read(2)
+local function ReadFUNCTION_RETURN_GetProductInfo(): ({ Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") })
+	-- Read BLOCK: 11 bytes
+	local BLOCK_START = Read(11)
 	local Success = buffer.readu8(RecieveBuffer, BLOCK_START + 0)
 	if Success ~= 1 then
 		error("Server encountered an error.")
 	end
-	-- START ARRAY
-	local Length = buffer.readu8(RecieveBuffer, BLOCK_START + 1)
-	if Length < 1 then error(`Expected "Length" to be larger than 1, got {Length} instead.`) end
-	if Length > 50 then error(`Expected "Length" to be smaller than 50, got {Length} instead.`) end
-	local Value = table.create(Length)
-		-- Read BLOCK: 8 bytes
-	local ARRAY_START_1 = Read(8 * Length)
-	for Index = 1, Length do
-		-- Read 8
-		local OPERATION_OFFSET_0 = ARRAY_START_1
-		ARRAY_START_1 += 8
-		local Item_1 = buffer.readf64(RecieveBuffer, OPERATION_OFFSET_0)
-		table.insert(Value, Item_1)
+	local Value = {} :: any
+	local Length = buffer.readu16(RecieveBuffer, BLOCK_START + 1)
+	Value.Name = buffer.readstring(RecieveBuffer, Read(Length), Length)
+	Length = buffer.readu16(RecieveBuffer, BLOCK_START + 3)
+	Value.Description = buffer.readstring(RecieveBuffer, Read(Length), Length)
+	if buffer.readu8(RecieveBuffer, BLOCK_START + 5) == 1 then
+		-- Read BLOCK: 4 bytes
+		local BLOCK_START = Read(4)
+		Value.PriceInRobux = buffer.readf32(RecieveBuffer, BLOCK_START + 0)
 	end
-	-- END ARRAY
+	if buffer.readu8(RecieveBuffer, BLOCK_START + 6) == 1 then
+		-- Read BLOCK: 2 bytes
+		local BLOCK_START = Read(2)
+		Length = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
+		Value.ProductType = buffer.readstring(RecieveBuffer, Read(Length), Length)
+	end
+	Value.IsForSale = (buffer.readu8(RecieveBuffer, BLOCK_START + 7) == 1)
+	Value.IsLimited = (buffer.readu8(RecieveBuffer, BLOCK_START + 8) == 1)
+	if buffer.readu8(RecieveBuffer, BLOCK_START + 9) == 1 then
+		-- Read BLOCK: 2 bytes
+		local BLOCK_START = Read(2)
+		Length = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
+		Value.BundleId = buffer.readstring(RecieveBuffer, Read(Length), Length)
+	end
+	Value.MarketplaceProductType = true :: any
+	local Index = buffer.readu8(RecieveBuffer, BLOCK_START + 10)
+	if Index == 0 then
+		Value.MarketplaceProductType = "Enum.MarketplaceProductType.AvatarBundle"
+	elseif Index == 1 then
+		Value.MarketplaceProductType = "Enum.MarketplaceProductType.AvatarAsset"
+	else
+		error(`Unexpected enum: {Index}`)
+	end
 	return Value
+end
+
+local function WriteEVENT_PromptPurchase(Value: {[number]: { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }}): ()
+	-- Allocate BLOCK: 3 bytes
+	local BLOCK_START = Allocate(3)
+	buffer.writeu8(SendBuffer, BLOCK_START + 0, 1)
+	local Elements_1 = 0
+	for Key_1, Element_1 in Value do
+		Elements_1 += 1
+		local OFFSET_0 = Allocate(8)
+		buffer.writef64(SendBuffer, OFFSET_0, Key_1)
+		local OFFSET_1 = Allocate(1)
+		if Element_1.Type == "Enum.MarketplaceProductType.AvatarBundle" then
+			buffer.writeu8(SendBuffer, OFFSET_1, 0)
+		elseif Element_1.Type == "Enum.MarketplaceProductType.AvatarAsset" then
+			buffer.writeu8(SendBuffer, OFFSET_1, 1)
+		else
+			error(`Unexpected enum: {Element_1.Type}, expected one of "Enum.MarketplaceProductType.AvatarBundle" or "Enum.MarketplaceProductType.AvatarAsset".`)
+		end
+		local Length = #Element_1.Id
+		local OFFSET_2 = Allocate(2)
+		buffer.writeu16(SendBuffer, OFFSET_2, Length)
+		Allocate(Length)
+		buffer.writestring(SendBuffer, SendOffset, Element_1.Id, Length)
+	end
+	buffer.writeu16(SendBuffer, BLOCK_START + 1, Elements_1)
 end
 
 if not RunService:IsRunning() then
@@ -189,6 +237,9 @@ if not RunService:IsRunning() then
 	local Returns = table.freeze({
 	GetProductInfo = {
 		Invoke = NOOP
+	},
+	PromptPurchase = {
+		Fire = NOOP
 	},
 	})
 	return Returns :: BLINK_EVENTS_SYMBOL
@@ -259,7 +310,7 @@ local Returns = table.freeze({
 	StepReplication = StepReplication,
 
 	GetProductInfo = {
-		Invoke = function(Value: number): ({ number })
+		Invoke = function(Value: number): ({ Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") })
 			local InvocationIdentifier = Invoke()
 			if Calls[InvocationIdentifier] ~= nil then
 				Invocations -= 1
@@ -267,11 +318,16 @@ local Returns = table.freeze({
 			end
 			WriteFUNCTION_DATA_GetProductInfo(Value, InvocationIdentifier)
 			Calls[InvocationIdentifier] = coroutine.running()
-			local Success, ReturnValue: { number } = coroutine.yield()
+			local Success, ReturnValue: { Name: string, Description: string, PriceInRobux: number?, ProductType: string?, IsForSale: boolean, IsLimited: boolean, BundleId: string?, MarketplaceProductType: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset") } = coroutine.yield()
 			if Success ~= true then
 				error("There was an exception while processing \"GetProductInfo\".")
 			end
 			return ReturnValue
+		end
+	},
+	PromptPurchase = {
+		Fire = function(Value: {[number]: { Type: ("Enum.MarketplaceProductType.AvatarBundle" | "Enum.MarketplaceProductType.AvatarAsset"), Id: string }}): ()
+			WriteEVENT_PromptPurchase(Value)
 		end
 	},
 })

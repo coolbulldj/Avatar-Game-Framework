@@ -9,6 +9,7 @@ local SharedFldr = ReplicatedStorage.Shared
 local ClientModules = ReplicatedStorage.ClientModules
 local RenderingFldr = ClientModules.renderingFldr
 local AnimationHandler = require(RenderingFldr.animationHandler)
+local PromptHandler = require(RenderingFldr.PromptHandler)
 local SharedFunctions = require(SharedFldr.SharedFunctions)
 local Config = require(ClientModules:FindFirstChild("Config"))
 
@@ -62,6 +63,7 @@ end
 
 function Renderer.RenderStand(stand)
 	AnimationHandler.PlayAnimation(stand.Rig, stand:GetAttribute("RawAnimationId"), true)
+	PromptHandler.RenderPrompt(stand)
 	InRenderStands[stand] = true
 end
 
@@ -73,6 +75,9 @@ end
 function Renderer.SetPrimaryStand(Data: StandData)
 	--Set highlight parent
 	Highlight.Parent = Data.StandRig
+
+	--Enable prompts
+	PromptHandler.ShowPrompts(Data.StandRig)
 end
 
 function Renderer.RenderStands(List) --This list contains all the stands to be renders
@@ -80,6 +85,7 @@ function Renderer.RenderStands(List) --This list contains all the stands to be r
 		if InRenderStands[stand] then
 			continue
 		end
+		PromptHandler.HidePrompts(stand.Rig)
 		Renderer.RenderStand(stand)
 	end
 

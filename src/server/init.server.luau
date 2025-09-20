@@ -7,4 +7,8 @@ local Net = require(SharedFldr.blink.server)
 
 local MarketplaceHandler = require(ServerModules.MarketplaceHandler)
 
-Net.GetProductInfo.On(MarketplaceHandler.GetProductInfo)
+Net.GetProductInfo.On(function(_, ...)
+	return MarketplaceHandler.GetProductInfo(...)
+end)
+
+Net.PromptPurchase.On(MarketplaceHandler.PromptPurchase)
